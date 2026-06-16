@@ -15,8 +15,11 @@ WORKDIR /opt/docpilot
 # Install the package with the providers + GitHub extras.
 COPY pyproject.toml README.md requirements.txt ./
 COPY docpilot ./docpilot
+# ChromaDB is intentionally omitted: a CI run diffs a single PR and uses the
+# in-memory embedding store, so the heavy vector-DB dependency would only slow
+# the image build. LLM providers + PyGithub are all the Action needs.
 RUN pip install --upgrade pip \
-    && pip install ".[openai,anthropic,chroma,github]"
+    && pip install ".[openai,anthropic,github]"
 
 # GitHub mounts the repo at GITHUB_WORKSPACE and runs from there.
 ENTRYPOINT ["python", "-m", "docpilot.action.entrypoint"]
