@@ -1,4 +1,4 @@
-name: "DocPilot"
+name: "DocPilot Self-Healing Docs"
 description: "Self-healing technical documentation: detect stale docs on PRs and auto-fix or flag them."
 author: "DocPilot"
 branding:
