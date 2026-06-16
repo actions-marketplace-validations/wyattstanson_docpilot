@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0   # full history so DocPilot can diff base..head
 
       - name: Run DocPilot
-        uses: your-org/docpilot@v1
+        uses: wyattstanson/docpilot@v1
         with:
           llm_api_key: ${{ secrets.OPENAI_API_KEY }}
           llm_provider: openai

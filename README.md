@@ -121,7 +121,7 @@ Usage (consumer workflow — see [.github/workflows/docpilot.yml](.github/workfl
 ```yaml
 - uses: actions/checkout@v4
   with: { fetch-depth: 0 }
-- uses: your-org/docpilot@v1
+- uses: wyattstanson/docpilot@v1
   with:
     llm_api_key: ${{ secrets.OPENAI_API_KEY }}
     llm_provider: openai
