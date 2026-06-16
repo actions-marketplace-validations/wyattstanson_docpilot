@@ -41,11 +41,28 @@ class EmbeddingStore:
 
     # -- indexing ------------------------------------------------------------
 
+    def _embed(self, texts: list[str]) -> list[list[float]]:
+        """Embed texts, falling back to mock embeddings if the provider fails.
+
+        A bad/placeholder API key or a provider outage must never abort the
+        pipeline: linking simply continues with deterministic in-memory vectors.
+        """
+        try:
+            return self.client.embed(texts)
+        except Exception as exc:  # noqa: BLE001 - provider SDKs raise broadly
+            from .llm import MockEmbeddingClient
+
+            logger.warning(
+                "Embedding provider failed (%s); falling back to mock embeddings.", exc
+            )
+            self.client = MockEmbeddingClient()
+            return self.client.embed(texts)
+
     def index_chunks(self, chunks: list[CodeChunk]) -> None:
         if not chunks:
             return
         texts = [chunk_embedding_text(c) for c in chunks]
-        vecs = self.client.embed(texts)
+        vecs = self._embed(texts)
         for c, v in zip(chunks, vecs):
             self._chunk_vecs[c.chunk_id] = v
         self._persist("code_chunks", [c.chunk_id for c in chunks], vecs, texts)
@@ -55,7 +72,7 @@ class EmbeddingStore:
         if not sections:
             return
         texts = [section_embedding_text(s) for s in sections]
-        vecs = self.client.embed(texts)
+        vecs = self._embed(texts)
         for s, v in zip(sections, vecs):
             self._section_vecs[s.section_id] = v
         self._persist("doc_sections", [s.section_id for s in sections], vecs, texts)
