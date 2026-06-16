@@ -7,6 +7,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
+# GitHub mounts the workspace owned by a different UID than the container's
+# root user; without this, git refuses to operate ("dubious ownership").
+RUN git config --system --add safe.directory '*'
+
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 

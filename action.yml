@@ -29,6 +29,10 @@ inputs:
     description: "Comma-separated source paths."
     required: false
     default: "src/,lib/"
+  github_token:
+    description: "Token used to open fix PRs and comment. Defaults to the workflow token."
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   stale_sections_found:
@@ -48,3 +52,4 @@ runs:
     INPUT_AUTO_MERGE: ${{ inputs.auto_merge }}
     INPUT_DOCS_PATHS: ${{ inputs.docs_paths }}
     INPUT_CODE_PATHS: ${{ inputs.code_paths }}
+    GITHUB_TOKEN: ${{ inputs.github_token }}
