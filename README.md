@@ -1,5 +1,11 @@
 # DocPilot — Self-Healing Technical Documentation
 
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-DocPilot-7c3aed?logo=github)](https://github.com/marketplace/actions/docpilot-self-healing-docs)
+[![Release](https://img.shields.io/github/v/release/wyattstanson/docpilot?color=7c3aed)](https://github.com/wyattstanson/docpilot/releases)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Tests](https://img.shields.io/badge/tests-36%20passing-brightgreen)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 > Every engineering team has stale docs. DocPilot detects when a code change
 > makes documentation inaccurate, pinpoints the exact stale section, and either
 > opens a PR with a corrected version or flags it for human review — right
