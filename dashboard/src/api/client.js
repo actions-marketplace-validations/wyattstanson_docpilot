@@ -28,6 +28,14 @@ export const api = {
   runDemo: (name) => req(`/api/demos/${name}`, { method: "POST" }),
   checkPaste: (body) => req("/api/check/paste", { method: "POST", body: JSON.stringify(body) }),
   checkGithub: (body) => req("/api/check/github", { method: "POST", body: JSON.stringify(body) }),
+  audit: async (formData) => {
+    const res = await fetch("/api/audit", { method: "POST", body: formData });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.detail || `Audit failed: ${res.status}`);
+    }
+    return res.json();
+  },
 };
 
 // ---- offline fallback samples ------------------------------------------------

@@ -207,10 +207,11 @@ bridge to the engine. Six sections — Overview, Repository Map, Staleness Repor
 PR Activity, Live Testing Console, Configuration — with glass-morphism cards,
 micro-animations, skeleton loaders, toasts and keyboard nav (`Alt+1..6`).
 
-The **Live Testing Console** runs the *real* pipeline in three modes: Paste (ad-hoc
-diff + doc), GitHub (fetch a PR diff via PyGithub), and Demo (the four built-in
-staleness patterns). The Overview/Staleness/PR pages are seeded from actual engine
-output, not canned data.
+The **Live Testing Console** runs the *real* pipeline in four modes: Demo (the four
+built-in staleness patterns), **Audit** (upload a code file + your docs in Markdown
+**or PDF** and DocPilot reports sections that no longer match the code — no diff
+needed), Paste (ad-hoc diff + doc), and GitHub (fetch a PR diff via PyGithub). The
+Overview/Staleness/PR pages are seeded from actual engine output, not canned data.
 
 ```bash
 # 1. Start the engine bridge (http://127.0.0.1:8000)

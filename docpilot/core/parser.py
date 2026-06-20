@@ -496,6 +496,30 @@ class DocParser:
             flush(len(lines))
         return sections
 
+    def parse_text_loose(self, rel: str, text: str) -> list[DocSection]:
+        """Like :meth:`parse_text`, but resilient to heading-less input.
+
+        Markdown with headings parses normally. Text without any headings (a
+        common case for PDF-extracted documentation) is split into sections on
+        blank lines, each given a synthetic heading from its first line.
+        """
+        sections = self.parse_text(rel, text)
+        if sections:
+            return sections
+        blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+        out: list[DocSection] = []
+        line_cursor = 1
+        for i, block in enumerate(blocks, start=1):
+            first_line = block.splitlines()[0].strip()
+            heading = (first_line[:60] + "…") if len(first_line) > 60 else first_line
+            heading = heading or f"Section {i}"
+            n_lines = block.count("\n") + 1
+            out.append(
+                self._make_section(rel, heading, block, line_cursor, line_cursor + n_lines, 1)
+            )
+            line_cursor += n_lines + 1
+        return out
+
     def _make_section(
         self, rel: str, heading_path: str, content: str, start: int, end: int, level: int
     ) -> DocSection:

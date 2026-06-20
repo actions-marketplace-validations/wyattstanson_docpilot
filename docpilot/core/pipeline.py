@@ -231,6 +231,33 @@ class Pipeline:
             "correction": correction.to_dict() if correction else None,
         }
 
+    # -- audit (no diff) -----------------------------------------------------
+
+    def audit(self, code_path: str, code_text: str, docs_text: str) -> dict[str, Any]:
+        """Audit docs against the *current* code (single snapshot, no diff).
+
+        Parses the supplied code and documentation, links them, and reports doc
+        sections that contradict the code. Powers the dashboard's upload mode.
+        """
+        from .auditor import Auditor
+        from .embeddings import EmbeddingStore
+
+        chunks = self.code_parser.parse_source(code_path, code_text)
+        sections = self.doc_parser.parse_text_loose("uploaded_docs.md", docs_text)
+
+        store = EmbeddingStore(self.config)
+        store.index_chunks(chunks)
+        store.index_sections(sections)
+        links = self.linker.build_links(chunks, sections, store)
+        mapping = Mapping(code_chunks=chunks, doc_sections=sections, links=links)
+
+        report = Auditor(self.config).audit(mapping)
+        result = report.to_dict()
+        result["code_chunks"] = len(chunks)
+        result["doc_sections"] = len(sections)
+        result["links"] = len(links)
+        return result
+
     @staticmethod
     def _most_relevant(changes: list[CodeChange], section: DocSection) -> CodeChange:
         refs = {r.lower() for r in section.code_references}

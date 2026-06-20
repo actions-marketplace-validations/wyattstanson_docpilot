@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Play, Loader2, Sparkles, Github, ClipboardPaste, Wand2 } from "lucide-react";
+import { Play, Loader2, Sparkles, Github, ClipboardPaste, Wand2, FileSearch, Upload, CheckCircle2 } from "lucide-react";
 import { api } from "../api/client.js";
 import { SectionHeader, ConfidenceBadge, StatusBadge } from "../components/ui.jsx";
 import DiffViewer from "../components/DiffViewer.jsx";
@@ -8,6 +8,7 @@ import { CHANGE_TYPE } from "../lib/format.js";
 
 const MODES = [
   { id: "demo", label: "Demo", icon: Sparkles },
+  { id: "audit", label: "Audit", icon: FileSearch },
   { id: "paste", label: "Paste", icon: ClipboardPaste },
   { id: "github", label: "GitHub", icon: Github },
 ];
@@ -29,6 +30,7 @@ export default function LiveConsole() {
   const [demos, setDemos] = useState([]);
   const [paste, setPaste] = useState(DEFAULT_PASTE);
   const [gh, setGh] = useState({ repo_url: "", pr_number: "" });
+  const [audit, setAudit] = useState({ code: null, docs: null });
 
   useEffect(() => {
     api.demos().then((d) => setDemos(d.demos)).catch(() => setDemos([]));
@@ -60,6 +62,31 @@ export default function LiveConsole() {
   const runPaste = () => pipelineStages(() => api.checkPaste(paste));
   const runGithub = () =>
     pipelineStages(() => api.checkGithub({ repo_url: gh.repo_url, pr_number: Number(gh.pr_number) }));
+
+  async function runAudit() {
+    setRunning(true);
+    setResult(null);
+    const stages = ["Reading the files…", "Parsing code + docs…", "Building the link graph…", "Auditing each section…"];
+    for (const s of stages) {
+      setStage(s);
+      await new Promise((r) => setTimeout(r, 260));
+    }
+    try {
+      const fd = new FormData();
+      fd.append("code", audit.code);
+      fd.append("docs", audit.docs);
+      const res = await api.audit(fd);
+      res._audit = true;
+      setResult(res);
+      if (res.inconsistent > 0) toast(`${res.inconsistent} inconsistent doc section(s)`, "warning");
+      else toast("Docs match the code", "success");
+    } catch (e) {
+      toast(e.message, "error");
+    } finally {
+      setRunning(false);
+      setStage("");
+    }
+  }
 
   return (
     <div className="animate-fade-in">
@@ -102,6 +129,30 @@ export default function LiveConsole() {
                   <Play size={16} className="shrink-0 text-violet-soft opacity-0 transition group-hover:opacity-100" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {mode === "audit" && (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-paper-400">
+                Upload a code file and your docs (Markdown, text, or PDF). DocPilot audits
+                whether the docs still match the code — no diff needed.
+              </p>
+              <FilePicker
+                label="Code file"
+                accept=".py,.js,.jsx,.ts,.tsx,.mjs,.cjs"
+                file={audit.code}
+                onPick={(f) => setAudit({ ...audit, code: f })}
+              />
+              <FilePicker
+                label="Docs file (.md / .txt / .pdf)"
+                accept=".md,.markdown,.txt,.pdf"
+                file={audit.docs}
+                onPick={(f) => setAudit({ ...audit, docs: f })}
+              />
+              <button className="btn-primary" disabled={running || !audit.code || !audit.docs} onClick={runAudit}>
+                {running ? <Loader2 size={16} className="animate-spin" /> : <FileSearch size={16} />} Run audit
+              </button>
             </div>
           )}
 
@@ -158,6 +209,8 @@ export default function LiveConsole() {
               <Wand2 size={28} />
               <p className="text-sm">Run a check to see the diagnosis and proposed fix.</p>
             </div>
+          ) : result._audit ? (
+            <AuditResult result={result} />
           ) : (
             <Result result={result} />
           )}
@@ -175,6 +228,74 @@ function Field({ label, children }) {
       <span className="mb-1.5 block text-xs font-medium text-paper-400">{label}</span>
       {children}
     </label>
+  );
+}
+
+function FilePicker({ label, accept, file, onPick }) {
+  return (
+    <label className="block cursor-pointer">
+      <span className="mb-1.5 block text-xs font-medium text-paper-400">{label}</span>
+      <div
+        className={`flex items-center gap-3 rounded-md border border-dashed px-4 py-3 transition ${
+          file ? "border-sage/40 bg-sage/[0.05]" : "border-paper-50/15 bg-paper-50/[0.02] hover:border-clay/40"
+        }`}
+      >
+        <Upload size={16} className={file ? "text-sage-soft" : "text-paper-400"} />
+        <span className="truncate text-sm text-paper-200">
+          {file ? file.name : "Choose a file…"}
+        </span>
+      </div>
+      <input
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => onPick(e.target.files?.[0] || null)}
+      />
+    </label>
+  );
+}
+
+function AuditResult({ result }) {
+  const findings = result.findings || [];
+  const clean = result.inconsistent === 0;
+  return (
+    <div className="animate-fade-in flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`chip ${clean ? "bg-sage/15 text-sage-soft border border-sage/40" : "bg-clay/15 text-clay-soft border border-clay/40"}`}>
+          {clean ? "Consistent" : `${result.inconsistent} inconsistent`}
+        </span>
+        <span className="chip bg-paper-50/5 text-paper-400 border border-paper-50/15">
+          {result.sections_checked} sections · {result.code_chunks} symbols · {result.links} links
+        </span>
+      </div>
+
+      {clean ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+          <CheckCircle2 size={28} className="text-sage-soft" />
+          <p className="text-sm text-paper-200">The documentation matches the current code.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {findings.map((f, i) => (
+            <div key={i} className="rounded-md border border-paper-50/10 bg-paper-50/[0.02] p-4">
+              <div className="mb-1.5 flex items-center gap-2">
+                <span className="font-serif text-sm text-paper-50">{f.heading}</span>
+                <ConfidenceBadge value={f.confidence} />
+                <span className="chip bg-paper-50/5 text-paper-400 border border-paper-50/15">
+                  {f.kind === "missing_symbol" ? "missing symbol" : "mismatch"}
+                </span>
+              </div>
+              <p className="text-sm text-paper-200">{f.diagnosis}</p>
+              {f.suggested_fix && (
+                <pre className="mt-2 overflow-auto rounded-md border border-sage/25 bg-sage/[0.05] p-3 font-mono text-[12.5px] leading-relaxed text-sage-soft whitespace-pre-wrap">
+                  {f.suggested_fix.trim()}
+                </pre>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

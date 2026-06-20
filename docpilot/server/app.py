@@ -31,7 +31,7 @@ from .store import DashboardStore
 logger = logging.getLogger("docpilot.server")
 
 try:
-    from fastapi import FastAPI, HTTPException
+    from fastapi import FastAPI, File, Form, HTTPException, UploadFile
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse
     from fastapi.staticfiles import StaticFiles
@@ -145,6 +145,34 @@ def create_app(config: Optional[Config] = None) -> "FastAPI":
             req.file_path, req.old_code, req.new_code, req.doc_heading, req.doc_content
         )
         store.record_live_check(req.doc_heading, result)
+        return result
+
+    @app.post("/api/audit")
+    async def audit(
+        code: UploadFile = File(...),
+        docs: UploadFile = File(...),
+    ) -> dict:
+        """Audit uploaded docs against uploaded code (Markdown or PDF docs)."""
+        code_text = (await code.read()).decode("utf-8", errors="replace")
+        docs_bytes = await docs.read()
+        docs_name = (docs.filename or "").lower()
+        if docs_name.endswith(".pdf"):
+            try:
+                from ..core.pdf import extract_pdf_text
+
+                docs_text = extract_pdf_text(docs_bytes)
+            except Exception as exc:  # noqa: BLE001
+                raise HTTPException(status_code=400, detail=f"Could not read PDF: {exc}")
+        else:
+            docs_text = docs_bytes.decode("utf-8", errors="replace")
+
+        if not code_text.strip() or not docs_text.strip():
+            raise HTTPException(status_code=400, detail="Both a code file and a docs file are required.")
+
+        result = pipeline.audit(code.filename or "uploaded.py", code_text, docs_text)
+        result["code_filename"] = code.filename
+        result["docs_filename"] = docs.filename
+        store.record_live_check(f"audit {docs.filename}", {"finding": {"diagnosis": f"{result['inconsistent']} inconsistent section(s)"}})
         return result
 
     @app.post("/api/check/github")
