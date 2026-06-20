@@ -134,3 +134,83 @@ body::before {
   outline-offset: 2px;
   border-radius: 6px;
 }
+
+/* ── custom cursor ─────────────────────────────────────────────────────── */
+.custom-cursor,
+.custom-cursor * {
+  cursor: none !important;
+}
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+  will-change: transform;
+}
+.cursor-dot {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #d9542f;
+  transition: opacity 0.2s ease;
+}
+.cursor-ring {
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(217, 84, 47, 0.55);
+  /* note: transform is NOT transitioned — the trailing lag comes from JS lerp */
+  transition: width 0.2s ease, height 0.2s ease, margin 0.2s ease,
+    border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+}
+.cursor-ring.cursor-hover {
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  border-color: rgba(216, 178, 106, 0.85);
+  background: rgba(217, 84, 47, 0.06);
+}
+.cursor-ring.cursor-down {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-color: rgba(217, 84, 47, 0.95);
+}
+
+/* ── splash / welcome screen ───────────────────────────────────────────── */
+.splash-logo {
+  animation: splash-pop 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.splash-title {
+  animation: splash-rise 0.8s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.splash-sub {
+  animation: splash-rise 0.8s 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.splash-bar {
+  animation: splash-rise 0.8s 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes splash-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) rotate(-35deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+@keyframes splash-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   LayoutDashboard,
   Network,
@@ -6,6 +6,8 @@ import {
   GitPullRequest,
   Settings,
   TerminalSquare,
+  GripVertical,
+  CornerUpLeft,
 } from "lucide-react";
 import Logo from "./Logo.jsx";
 
@@ -18,26 +20,78 @@ export const NAV = [
   { id: "config", label: "Configuration", icon: Settings },
 ];
 
-export default function Sidebar({ active, onChange, health }) {
+export default function Sidebar({ active, onChange, health, pos, setPos, docked }) {
+  const drag = useRef(null);
+
+  const onGripDown = (e) => {
+    e.preventDefault();
+    drag.current = { sx: e.clientX, sy: e.clientY, ox: pos.x, oy: pos.y };
+    const onMove = (ev) => {
+      if (!drag.current) return;
+      const nx = drag.current.ox + (ev.clientX - drag.current.sx);
+      const ny = drag.current.oy + (ev.clientY - drag.current.sy);
+      // clamp so the panel can never be dragged fully off-screen
+      const maxX = window.innerWidth - 120;
+      const maxY = window.innerHeight - 120;
+      setPos({ x: Math.max(-40, Math.min(nx, maxX)), y: Math.max(0, Math.min(ny, maxY)) });
+    };
+    const onUp = () => {
+      drag.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
   const dot =
     health === "red" ? "bg-clay" : health === "amber" ? "bg-sand" : "bg-sage";
+
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-paper-50/[0.07] bg-ink-850/70 px-4 py-6">
-      <div className="mb-9 flex items-center gap-3 px-1">
-        <Logo size={42} />
-        <div>
-          <p className="font-serif text-xl font-semibold leading-none tracking-tight text-paper-50">
-            DocPilot
-          </p>
-          <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-label text-paper-400">
-            self-healing docs
-          </p>
+    <aside
+      className={`fixed left-0 top-0 z-40 flex w-64 flex-col border border-paper-50/[0.07] bg-ink-850/80 px-4 py-5 backdrop-blur-md transition-[box-shadow,border-radius,height] duration-300 ease-guide ${
+        docked
+          ? "h-screen border-y-0 border-l-0"
+          : "max-h-[88vh] rounded-2xl shadow-card"
+      }`}
+      style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
+    >
+      {/* drag handle */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3 px-1">
+          <Logo size={38} />
+          <div>
+            <p className="font-serif text-lg font-semibold leading-none tracking-tight text-paper-50">
+              DocPilot
+            </p>
+            <p className="mt-1 text-[9px] font-semibold uppercase tracking-label text-paper-400">
+              self-healing docs
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          {!docked && (
+            <button
+              onClick={() => setPos({ x: 0, y: 0 })}
+              title="Dock to left"
+              className="rounded-md p-1 text-paper-400 transition hover:bg-paper-50/10 hover:text-paper-50"
+            >
+              <CornerUpLeft size={14} />
+            </button>
+          )}
+          <button
+            onPointerDown={onGripDown}
+            title="Drag to move the navigation"
+            className="cursor-grab rounded-md p-1 text-paper-400 transition hover:bg-paper-50/10 hover:text-paper-50 active:cursor-grabbing"
+          >
+            <GripVertical size={16} />
+          </button>
         </div>
       </div>
 
-      <div className="rule mb-5 animate-rule-draw" />
+      <div className="rule mb-4 animate-rule-draw" />
 
-      <nav className="flex flex-1 flex-col gap-1" role="navigation">
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto" role="navigation">
         {NAV.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
@@ -55,7 +109,7 @@ export default function Sidebar({ active, onChange, health }) {
         })}
       </nav>
 
-      <div className="rule my-5" />
+      <div className="rule my-4" />
 
       <div className="flex items-center gap-2.5 px-1.5">
         <span className={`h-1.5 w-1.5 rounded-full ${dot} animate-breathe`} />

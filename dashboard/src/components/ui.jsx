@@ -1,8 +1,28 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { CONFIDENCE, STATUS } from "../lib/format.js";
 
 export function Skeleton({ className = "" }) {
   return <div className={`skeleton animate-shimmer rounded-md ${className}`} />;
+}
+
+// Animate a number from 0 up to `target` once it becomes available.
+function useCountUp(target, duration = 900) {
+  const [value, setValue] = useState(0);
+  const raf = useRef();
+  useEffect(() => {
+    const end = Number(target);
+    if (!Number.isFinite(end)) return;
+    const start = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+      setValue(Math.round(eased * end));
+      if (p < 1) raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, [target, duration]);
+  return value;
 }
 
 export function ConfidenceBadge({ value }) {
@@ -17,8 +37,10 @@ export function StatusBadge({ value }) {
 
 export function StatCard({ icon: Icon, label, value, accent = "clay", loading }) {
   const tone = accent === "cyan" ? "text-sand" : "text-clay";
+  const isNumeric = Number.isFinite(Number(value));
+  const counted = useCountUp(isNumeric ? Number(value) : 0);
   return (
-    <div className="glass glass-hover animate-slide-in p-5">
+    <div className="glass glass-hover animate-slide-in p-5 transition-transform duration-300 ease-guide hover:-translate-y-0.5">
       <div className="flex items-start justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-label text-paper-400">
           {label}
@@ -31,7 +53,7 @@ export function StatCard({ icon: Icon, label, value, accent = "clay", loading })
         <Skeleton className="mt-4 h-10 w-20" />
       ) : (
         <div className="mt-3 font-serif text-5xl font-semibold tracking-tight text-paper-50">
-          {value}
+          {isNumeric ? counted : value}
         </div>
       )}
     </div>

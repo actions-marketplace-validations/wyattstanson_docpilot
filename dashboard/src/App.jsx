@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Sidebar, { NAV } from "./components/Sidebar.jsx";
+import SplashScreen from "./components/SplashScreen.jsx";
+import CustomCursor from "./components/CustomCursor.jsx";
 import { ToastProvider } from "./hooks/useToast.jsx";
 import { api, SAMPLE, withFallback } from "./api/client.js";
 import Overview from "./pages/Overview.jsx";
@@ -18,13 +20,29 @@ const PAGES = {
   config: Configuration,
 };
 
+function loadNavPos() {
+  try {
+    return JSON.parse(localStorage.getItem("docpilot-nav-pos")) || { x: 0, y: 0 };
+  } catch {
+    return { x: 0, y: 0 };
+  }
+}
+
 export default function App() {
+  const [booting, setBooting] = useState(true);
   const [active, setActive] = useState("overview");
   const [health, setHealth] = useState("green");
+  const [navPos, setNavPos] = useState(loadNavPos);
+
+  const docked = navPos.x === 0 && navPos.y === 0;
 
   useEffect(() => {
     withFallback(api.overview, SAMPLE.overview).then((d) => setHealth(d.health));
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("docpilot-nav-pos", JSON.stringify(navPos));
+  }, [navPos]);
 
   // Keyboard navigation: Alt+1..6 jump between sections.
   useEffect(() => {
@@ -42,11 +60,23 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar active={active} onChange={setActive} health={health} />
-        <main className="flex-1 overflow-y-auto px-6 py-9 md:px-12">
+      <CustomCursor />
+      {booting && <SplashScreen onDone={() => setBooting(false)} />}
+
+      <div className="h-screen overflow-hidden">
+        <Sidebar
+          active={active}
+          onChange={setActive}
+          health={health}
+          pos={navPos}
+          setPos={setNavPos}
+          docked={docked}
+        />
+        <main
+          className="h-screen overflow-y-auto px-6 py-9 transition-[margin] duration-300 ease-guide md:px-12"
+          style={{ marginLeft: docked ? "16rem" : "0" }}
+        >
           <div className="mx-auto max-w-6xl">
-            {/* keyed wrapper -> guiding page transition on every section change */}
             <div key={active} className="animate-page-in">
               <div className="mb-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-label text-paper-400">
                 <span className="font-mono text-clay">{String(index + 1).padStart(2, "0")}</span>
