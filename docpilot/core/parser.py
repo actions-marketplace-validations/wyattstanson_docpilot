@@ -507,6 +507,10 @@ class DocParser:
         if sections:
             return sections
         blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+        # PDF extraction often loses blank lines, yielding one big block. In that
+        # case, split on heading-like lines (short, title-cased, unpunctuated).
+        if len(blocks) <= 1:
+            blocks = self._split_on_heading_lines(text) or blocks
         out: list[DocSection] = []
         line_cursor = 1
         for i, block in enumerate(blocks, start=1):
@@ -519,6 +523,30 @@ class DocParser:
             )
             line_cursor += n_lines + 1
         return out
+
+    @staticmethod
+    def _split_on_heading_lines(text: str) -> list[str]:
+        """Split heading-less prose into blocks at title-like lines."""
+        def is_heading(line: str) -> bool:
+            s = line.strip()
+            if not (2 <= len(s) <= 50) or not s[0].isupper():
+                return False
+            if s[-1] in ".,:;?!":
+                return False
+            return 1 <= len(s.split()) <= 6
+
+        lines = text.splitlines()
+        blocks: list[str] = []
+        current: list[str] = []
+        for line in lines:
+            if is_heading(line) and current:
+                blocks.append("\n".join(current).strip())
+                current = [line]
+            else:
+                current.append(line)
+        if current:
+            blocks.append("\n".join(current).strip())
+        return [b for b in blocks if b.strip()]
 
     def _make_section(
         self, rel: str, heading_path: str, content: str, start: int, end: int, level: int
@@ -553,6 +581,14 @@ class DocParser:
                 method = (m.group(1) or "").strip()
                 refs.add(f"{method} {m.group(2)}".strip())
                 refs.add(m.group(2))
+        # 3) Code-shaped tokens in plain prose (for PDF / non-markdown docs that
+        #    carry no backticks): function calls, snake_case, UPPER_CASE consts.
+        for m in re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)\(", text):  # name( call
+            refs.add(m.group(1))
+        for m in re.finditer(r"\b([a-z][a-z0-9]*_[a-z0-9_]+)\b", text):  # snake_case
+            refs.add(m.group(1))
+        for m in re.finditer(r"\b([A-Z][A-Z0-9_]{2,})\b", text):  # UPPER_CASE
+            refs.add(m.group(1))
         return sorted(refs)
 
     def _iter_doc_files(self) -> Iterable[Path]:

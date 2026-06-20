@@ -103,38 +103,39 @@ class Auditor:
                     report.findings.append(finding)
                     section_has_finding = True
 
-            # Documented-but-missing symbols (referenced, but in no chunk).
-            # Skip if this section already produced a concrete mismatch.
+            # Documented-but-missing symbols. To avoid flagging parameters or
+            # prose, only consider references the docs invoke as a CALL —
+            # ``name(...)`` — that match no parsed chunk.
             if section_has_finding:
                 continue
             for ref in section.code_references:
                 base = ref.split(".")[-1].split("(")[0].strip()
-                if base and base[0].isalpha() and base not in chunk_symbols and ref not in chunk_symbols:
-                    # Only flag identifier-like refs, not prose words.
-                    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", base) and (base.islower() or base.isupper() or base[0].isupper()):
-                        if self._looks_documented_symbol(base, section.content):
-                            report.findings.append(
-                                AuditFinding(
-                                    doc_section_id=section.section_id,
-                                    heading=section.heading_path,
-                                    chunk_id=None,
-                                    kind="missing_symbol",
-                                    confidence="medium",
-                                    diagnosis=f"Documentation references `{base}`, which was not found in the provided code.",
-                                )
-                            )
-                            break
+                if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", base or ""):
+                    continue
+                # must be a real identifier: at least 2 chars with a letter
+                # (skips markdown artifacts like a lone "_").
+                if len(base) < 2 or not any(ch.isalpha() for ch in base):
+                    continue
+                if base in chunk_symbols or ref in chunk_symbols:
+                    continue
+                if re.search(rf"\b{re.escape(base)}\(", section.content):
+                    report.findings.append(
+                        AuditFinding(
+                            doc_section_id=section.section_id,
+                            heading=section.heading_path,
+                            chunk_id=None,
+                            kind="missing_symbol",
+                            confidence="medium",
+                            diagnosis=f"Documentation references `{base}(...)`, which was not found in the provided code.",
+                        )
+                    )
+                    break
         return report
 
     @staticmethod
     def _linked_chunks(section: DocSection, mapping: Mapping) -> list[CodeChunk]:
         ids = {l.code_chunk_id for l in mapping.links if l.doc_section_id == section.section_id}
         return [c for c in mapping.code_chunks if c.chunk_id in ids]
-
-    @staticmethod
-    def _looks_documented_symbol(name: str, content: str) -> bool:
-        # backticked or call-like reference, to avoid flagging plain prose words.
-        return bool(re.search(rf"`{re.escape(name)}`|\b{re.escape(name)}\s*\(", content))
 
     # -- per-chunk check -----------------------------------------------------
 
