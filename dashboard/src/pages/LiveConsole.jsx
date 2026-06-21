@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Play, Loader2, Sparkles, Github, ClipboardPaste, Wand2, FileSearch, Upload, CheckCircle2 } from "lucide-react";
+import { Play, Loader2, Sparkles, Github, ClipboardPaste, Wand2, FileSearch, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
 import { api } from "../api/client.js";
 import { SectionHeader, ConfidenceBadge, StatusBadge } from "../components/ui.jsx";
 import DiffViewer from "../components/DiffViewer.jsx";
@@ -256,12 +256,98 @@ function FilePicker({ label, accept, file, onPick }) {
   );
 }
 
+function SummaryBlock({ summary }) {
+  if (!summary) return null;
+  const sims = summary.similarities || [];
+  const diff = summary.differences || {};
+  const undoc = diff.undocumented_code || [];
+  const extra = diff.unrelated_doc_sections || [];
+  return (
+    <div className="rounded-md border border-paper-50/10 bg-paper-50/[0.02] p-4">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-label text-paper-400">Summary</p>
+      <p className="text-sm text-paper-200">
+        <span className="font-semibold text-clay-soft">Code — </span>
+        {summary.code?.text}
+      </p>
+      <p className="mt-1.5 text-sm text-paper-200">
+        <span className="font-semibold text-sand-soft">Docs — </span>
+        {summary.docs?.text}
+      </p>
+
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-label text-sage-soft">
+            Similarities ({sims.length})
+          </p>
+          {sims.length === 0 ? (
+            <p className="text-xs text-paper-400">No shared references.</p>
+          ) : (
+            <ul className="space-y-1">
+              {sims.map((s, i) => (
+                <li key={i} className="font-mono text-[11px] text-paper-200">
+                  {s.doc} <span className="text-paper-400">↔</span> {s.code}
+                  <span className="ml-1 text-paper-400">({s.via})</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-label text-clay-soft">
+            Differences
+          </p>
+          <ul className="space-y-1 text-[11px] text-paper-200">
+            <li>{diff.mismatches || 0} mismatch(es) in linked docs</li>
+            {undoc.length > 0 && (
+              <li className="text-paper-400">
+                Undocumented code: <span className="font-mono text-paper-200">{undoc.join(", ")}</span>
+              </li>
+            )}
+            {extra.length > 0 && (
+              <li className="text-paper-400">
+                Doc sections not in code: <span className="text-paper-200">{extra.join(", ")}</span>
+              </li>
+            )}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SyntaxBanner({ syntax, filename }) {
+  if (!syntax || syntax.ok) return null;
+  const err = (syntax.errors || [])[0] || {};
+  return (
+    <div className="rounded-md border border-clay/40 bg-clay/[0.08] p-4">
+      <div className="flex items-center gap-2">
+        <AlertTriangle size={16} className="text-clay-soft" />
+        <p className="text-sm font-semibold text-clay-soft">
+          Syntax error in {filename || "the code"} — line {err.line}
+          {err.col ? `, col ${err.col}` : ""}
+        </p>
+      </div>
+      <p className="mt-1 text-sm text-paper-200">{err.message}</p>
+      {err.text && (
+        <pre className="mt-2 overflow-auto rounded border border-clay/25 bg-ink-900/60 p-2 font-mono text-[12px] text-paper-200">
+          {err.text}
+        </pre>
+      )}
+      <p className="mt-2 text-xs text-paper-400">
+        DocPilot couldn't fully parse this file, so the audit below may be incomplete. Fix the
+        syntax and re-run.
+      </p>
+    </div>
+  );
+}
+
 function AuditResult({ result }) {
   const findings = result.findings || [];
   const noOverlap = (result.auditable_sections ?? 0) === 0;
   const clean = !noOverlap && result.inconsistent === 0;
   return (
     <div className="animate-fade-in flex flex-col gap-4">
+      <SyntaxBanner syntax={result.syntax} filename={result.code_filename} />
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`chip ${
@@ -278,6 +364,8 @@ function AuditResult({ result }) {
           {result.auditable_sections ?? 0}/{result.sections_checked} auditable · {result.code_chunks} symbols · {result.links} links
         </span>
       </div>
+
+      <SummaryBlock summary={result.summary} />
 
       {noOverlap ? (
         <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">

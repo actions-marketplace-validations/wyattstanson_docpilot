@@ -209,8 +209,10 @@ micro-animations, skeleton loaders, toasts and keyboard nav (`Alt+1..6`).
 
 The **Live Testing Console** runs the *real* pipeline in four modes: Demo (the four
 built-in staleness patterns), **Audit** (upload a code file + your docs in Markdown
-**or PDF** and DocPilot reports sections that no longer match the code — no diff
-needed), Paste (ad-hoc diff + doc), and GitHub (fetch a PR diff via PyGithub). The
+**or PDF**: DocPilot summarizes each, lists their similarities and differences,
+flags doc sections that no longer match the code, and reports any **syntax errors**
+in the code — no diff needed), Paste (ad-hoc diff + doc), and GitHub (fetch a PR
+diff via PyGithub). The
 Overview/Staleness/PR pages are seeded from actual engine output, not canned data.
 
 ```bash

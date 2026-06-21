@@ -241,6 +241,10 @@ class Pipeline:
         """
         from .auditor import Auditor
         from .embeddings import EmbeddingStore
+        from .summarize import build_overview
+        from .syntax import check_syntax
+
+        syntax = check_syntax(code_path, code_text)
 
         chunks = self.code_parser.parse_source(code_path, code_text)
         sections = self.doc_parser.parse_text_loose("uploaded_docs.md", docs_text)
@@ -253,6 +257,8 @@ class Pipeline:
 
         report = Auditor(self.config).audit(mapping)
         result = report.to_dict()
+        result["syntax"] = syntax
+        result["summary"] = build_overview(chunks, sections, links, result["findings"])
         result["code_chunks"] = len(chunks)
         result["doc_sections"] = len(sections)
         result["links"] = len(links)
